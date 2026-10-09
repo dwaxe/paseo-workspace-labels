@@ -1,0 +1,47 @@
+{
+  "name": "paseo-workspace-labels",
+  "version": "0.1.0",
+  "description": "Keep Paseo workspace names aligned with their conversations or Git branches.",
+  "license": "MIT",
+  "type": "module",
+  "engines": {
+    "node": ">=22"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/dwaxe/paseo-workspace-labels.git"
+  },
+  "files": [
+    "paseo-plugin.json",
+    "OVERVIEW.md",
+    "index.client.ts",
+    "index.client.tsx",
+    "index.server.ts",
+    "index.server.tsx",
+    "client/",
+    "server/",
+    "shared/",
+    "!**/*.test.ts"
+  ],
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "lint": "prettier --check .",
+    "format": "prettier --write .",
+    "check": "npm run typecheck && npm run lint && npm test"
+  },
+  "devDependencies": {
+    "@getpaseo/plugin": "0.11.1",
+    "@getpaseo/client": "0.11.1",
+    "@getpaseo/protocol": "0.11.1",
+    "@tanstack/react-query": "^5.90.11",
+    "@types/react": "~19.2.0",
+    "@types/node": "^22.0.0",
+    "react": "19.1.0",
+    "react-native": "0.81.5",
+    "typescript": "^5.9.3",
+    "prettier": "^3.6.0",
+    "vitest": "^4.0.0",
+    "zod": "^4.4.3"
+  }
+}

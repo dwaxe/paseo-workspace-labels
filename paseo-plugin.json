@@ -1,0 +1,9 @@
+{
+  "id": "workspace-labels",
+  "name": "Workspace labels",
+  "description": "Follow conversation titles or Git branches while keeping familiar checkout names.",
+  "media": [],
+  "requirements": {
+    "paseo": ">=0.11.1 <0.12.0"
+  }
+}
