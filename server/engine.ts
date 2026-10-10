@@ -387,17 +387,6 @@ export class LabelEngine {
     this.assertActive(revision);
     this.validateWorkspace(latest, enrollment, record.cwd);
     if (latest.title !== record.lastApplied) {
-      if (latest.title === source.title) {
-        record.lastApplied = source.title;
-        record.pending = null;
-        await this.persist(state, revision);
-        return status(
-          enrollment,
-          "ready",
-          "Workspace name is current.",
-          source,
-        );
-      }
       record.paused = true;
       record.pending = null;
       await this.persist(state, revision);

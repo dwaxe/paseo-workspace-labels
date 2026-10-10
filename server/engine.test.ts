@@ -173,6 +173,21 @@ describe("opt-in workspace naming", () => {
 });
 
 describe("manual control and durable state", () => {
+  it("pauses when a manual edit matches the pending suggestion before any rename", async () => {
+    const { data, ports, engine } = fixture();
+    ports.save.mockImplementation(async (state) => {
+      data.saved = structuredClone(state);
+      const target = state.records.workspace.pending?.title;
+      if (target) data.workspace!.title = target;
+    });
+    expect((await engine.reconcile([enrollment()]))[0].state).toBe("paused");
+    data.agents[0].title = "Review export changes";
+    expect((await engine.reconcile([enrollment()]))[0].state).toBe("paused");
+    expect(data.workspace!.title).toBe("Fix sidebar navigation · alpha");
+    expect(ports.rename).not.toHaveBeenCalled();
+    expect(savedRecord(data).paused).toBe(true);
+  });
+
   it("keeps manual edits paused across restarts until explicit resume", async () => {
     const { data, ports, engine } = fixture();
     await engine.reconcile([enrollment()]);
