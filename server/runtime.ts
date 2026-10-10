@@ -146,13 +146,11 @@ export class LabelRuntime {
       return;
     }
     this.releases.push(() => subscription.release());
-    this.cleanups.push(
-      subscription.subscribe({
-        snapshot: () => this.schedule(),
-        update: () => {},
-        error: () => this.schedule(),
-      }),
-    );
+    subscription.subscribe({
+      snapshot: () => this.schedule(),
+      update: () => {},
+      error: () => this.schedule(),
+    });
   }
 
   async connect(api: PaseoApi): Promise<void> {

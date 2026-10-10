@@ -73,14 +73,13 @@ async function fixture() {
   });
   const streams: {
     release: ReturnType<typeof vi.fn>;
-    remove: ReturnType<typeof vi.fn>;
   }[] = [];
   const listeners = { agent: vi.fn(), workspace: vi.fn() };
   let onAgentUpdate: (update: PaseoAgentUpdate) => void = () => {};
   const subscription = () => {
-    const stream = { release: vi.fn(async () => {}), remove: vi.fn() };
+    const stream = { release: vi.fn(async () => {}) };
     streams.push(stream);
-    return { release: stream.release, subscribe: () => stream.remove };
+    return { release: stream.release, subscribe: () => () => {} };
   };
   const agentList = vi.fn(
     async (options: { subscribe?: object; page?: { cursor?: string } }) => ({
@@ -165,7 +164,6 @@ describe("Paseo SDK wiring", () => {
     await f.runtime.stop();
     for (const stream of f.streams) {
       expect(stream.release).toHaveBeenCalledTimes(1);
-      expect(stream.remove).toHaveBeenCalledTimes(1);
     }
     expect(f.listeners.agent).toHaveBeenCalledTimes(1);
     expect(f.listeners.workspace).toHaveBeenCalledTimes(1);
