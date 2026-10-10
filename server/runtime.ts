@@ -66,6 +66,12 @@ export async function readBranch(
 ): Promise<string | null> {
   if (!path.isAbsolute(cwd))
     throw new Error("Workspace directory must be an absolute path.");
+  const environment: NodeJS.ProcessEnv = {
+    ...process.env,
+    GIT_OPTIONAL_LOCKS: "0",
+  };
+  for (const variable of ["GIT_DIR", "GIT_WORK_TREE", "GIT_COMMON_DIR"])
+    delete environment[variable];
   try {
     const result = await execute(
       "git",
@@ -74,7 +80,7 @@ export async function readBranch(
         timeout: 10_000,
         maxBuffer: 4096,
         signal,
-        env: { ...process.env, GIT_OPTIONAL_LOCKS: "0" },
+        env: environment,
       },
     );
     const branch = result.stdout.trim();

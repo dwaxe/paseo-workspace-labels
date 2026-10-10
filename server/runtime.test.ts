@@ -139,6 +139,28 @@ async function fixture() {
 }
 
 describe("Paseo SDK wiring", () => {
+  it("reads the workspace branch instead of an inherited Git directory", async () => {
+    const requested = await fixture();
+    const unrelated = await fixture();
+    const cwd = path.dirname(requested.stateDirectory);
+    const other = path.dirname(unrelated.stateDirectory);
+    execFileSync("git", ["init", "--quiet", "-b", "owner/requested-task", cwd]);
+    execFileSync("git", [
+      "init",
+      "--quiet",
+      "-b",
+      "owner/unrelated-task",
+      other,
+    ]);
+    vi.stubEnv("GIT_DIR", path.join(other, ".git"));
+    try {
+      expect(await readBranch(cwd)).toBe("refs/heads/owner/requested-task");
+      expect(process.env.GIT_DIR).toBe(path.join(other, ".git"));
+    } finally {
+      vi.unstubAllEnvs();
+    }
+  });
+
   it("reads the same branch ref when a matching tag is added", async () => {
     const f = await fixture();
     const cwd = path.dirname(f.stateDirectory);
