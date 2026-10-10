@@ -369,33 +369,44 @@ export class LabelEngine {
       return status(enrollment, "ready", "Workspace name is current.", source);
 
     record.pending = { title: source.title };
-    await this.persist(state, revision);
-    const refreshedSource = await this.observe(enrollment, workspace, revision);
-    if (refreshedSource?.signature !== source.signature) {
-      record.pending = null;
+    try {
       await this.persist(state, revision);
-      return status(
+      const refreshedSource = await this.observe(
         enrollment,
-        "waiting",
-        "The naming source changed during this run; waiting for the next check.",
-        refreshedSource,
+        workspace,
+        revision,
       );
-    }
-    // No CAS exists in the SDK. Keep this title read as the final operation before
-    // rename, after source checks and durable intent persistence have finished.
-    const latest = await this.ports.workspace(workspace.id);
-    this.assertActive(revision);
-    this.validateWorkspace(latest, enrollment, record.cwd);
-    if (latest.title !== record.lastApplied) {
-      record.paused = true;
+      if (refreshedSource?.signature !== source.signature) {
+        record.pending = null;
+        await this.persist(state, revision);
+        return status(
+          enrollment,
+          "waiting",
+          "The naming source changed during this run; waiting for the next check.",
+          refreshedSource,
+        );
+      }
+      // No CAS exists in the SDK. Keep this title read as the final operation before
+      // rename, after source checks and durable intent persistence have finished.
+      const latest = await this.ports.workspace(workspace.id);
+      this.assertActive(revision);
+      this.validateWorkspace(latest, enrollment, record.cwd);
+      if (latest.title !== record.lastApplied) {
+        record.paused = true;
+        record.pending = null;
+        await this.persist(state, revision);
+        return status(
+          enrollment,
+          "paused",
+          "A manual rename paused automatic naming.",
+          source,
+        );
+      }
+    } catch (error) {
       record.pending = null;
-      await this.persist(state, revision);
-      return status(
-        enrollment,
-        "paused",
-        "A manual rename paused automatic naming.",
-        source,
-      );
+      // Runs are serialized; clear unattempted intent before the next run reads it.
+      await this.persist(state, this.revision);
+      throw error;
     }
     await this.ports.rename(workspace.id, source.title);
     this.assertActive(revision);

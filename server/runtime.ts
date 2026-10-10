@@ -38,7 +38,7 @@ export function agentView(agent: PaseoAgent): AgentView {
     workspaceId: agent.workspaceId ?? null,
     title: agent.title,
     createdAt: agent.createdAt,
-    parentAgentId: agent.labels["paseo.parent-agent-id"] ?? null,
+    parentAgentId: agent.labels["paseo.parent-agent-id"]?.trim() || null,
     archived: Boolean(agent.archivedAt),
     closed: agent.status === "closed",
     internal: agent.labels["paseo.internal"] === "true",

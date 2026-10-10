@@ -139,6 +139,20 @@ async function fixture() {
 }
 
 describe("Paseo SDK wiring", () => {
+  it.each(["", "  "])(
+    "follows a root conversation with a blank parent label (%j)",
+    async (parent) => {
+      const f = await fixture();
+      f.agents[0].labels["paseo.parent-agent-id"] = parent;
+      const result = await f.runtime.inspect(f.api);
+      expect(result.agents.map((item) => item.id)).toEqual(["a1"]);
+      expect(result.statuses[0].state).toBe("ready");
+      expect(f.rename).toHaveBeenCalledExactlyOnceWith(
+        "Improve search · alpha",
+      );
+    },
+  );
+
   it("reads the workspace branch instead of an inherited Git directory", async () => {
     const requested = await fixture();
     const unrelated = await fixture();

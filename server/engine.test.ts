@@ -292,6 +292,52 @@ describe("manual control and durable state", () => {
 });
 
 describe("failure recovery and observation races", () => {
+  it("clears unattempted intent before a queued settings change reads it", async () => {
+    const { data, ports, engine } = fixture();
+    let queued: ReturnType<LabelEngine["reconcile"]> | undefined;
+    ports.agents
+      .mockResolvedValueOnce(structuredClone(data.agents))
+      .mockImplementationOnce(async () => {
+        data.workspace!.title = "Fix sidebar navigation · alpha";
+        queued = engine.reconcile([enrollment({ alias: "beta" })]);
+        return structuredClone(data.agents);
+      });
+    expect((await engine.reconcile([enrollment()]))[0].state).toBe("waiting");
+    expect((await queued)?.[0].state).toBe("paused");
+    expect(data.workspace!.title).toBe("Fix sidebar navigation · alpha");
+    expect(savedRecord(data).pending).toBeNull();
+    expect(ports.rename).not.toHaveBeenCalled();
+  });
+
+  it.each(["source", "workspace", "persistence"])(
+    "clears intent after a pre-write %s failure and preserves a matching manual title",
+    async (failure) => {
+      const { data, ports, engine } = fixture();
+      if (failure === "source") {
+        ports.agents
+          .mockResolvedValueOnce(structuredClone(data.agents))
+          .mockRejectedValueOnce(new Error("Source unavailable"));
+      } else if (failure === "workspace") {
+        ports.workspace
+          .mockResolvedValueOnce(structuredClone(data.workspace))
+          .mockRejectedValueOnce(new Error("Workspace unavailable"));
+      } else {
+        ports.save.mockImplementation(async (state) => {
+          data.saved = structuredClone(state);
+          if (state.records.workspace.pending)
+            throw new Error("Intent save was not confirmed");
+        });
+      }
+      expect((await engine.reconcile([enrollment()]))[0].state).toBe("error");
+      expect(savedRecord(data).pending).toBeNull();
+      data.workspace!.title = "Fix sidebar navigation · alpha";
+      data.agents[0].title = "Review export changes";
+      expect((await engine.reconcile([enrollment()]))[0].state).toBe("paused");
+      expect(data.workspace!.title).toBe("Fix sidebar navigation · alpha");
+      expect(ports.rename).not.toHaveBeenCalled();
+    },
+  );
+
   it("recovers a successful rename whose command acknowledgement was lost", async () => {
     const { data, ports, engine } = fixture();
     ports.rename.mockImplementationOnce(async (_id, title) => {
