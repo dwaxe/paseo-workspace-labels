@@ -178,12 +178,14 @@ export class LabelRuntime {
         }),
       );
       this.cleanups.push(api.workspaces.subscribe(() => this.schedule()));
-      const agentStream = await api.agents.list({
-        filter: { includeArchived: false },
-        page: { limit: PAGE_SIZE },
-        subscribe: {},
-      });
-      this.own(agentStream.subscription);
+      const agentStream = await api.agents
+        .list({
+          filter: { includeArchived: false },
+          page: { limit: PAGE_SIZE },
+          subscribe: {},
+        })
+        .catch(() => null);
+      if (agentStream) this.own(agentStream.subscription);
       if (this.stopped) return;
       const workspaceStream = await api.workspaces.list({
         page: { limit: PAGE_SIZE },
