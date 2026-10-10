@@ -1,4 +1,3 @@
-import { createHash } from "node:crypto";
 import type {
   AgentView,
   Enrollment,
@@ -15,9 +14,8 @@ interface EnrollmentRecord {
   cwd: string;
   lastApplied: string | null;
   paused: boolean;
-  configFingerprint: string;
   generation: number;
-  pending: { title: string; sourceFingerprint: string } | null;
+  pending: { title: string } | null;
 }
 
 export interface EngineState {
@@ -36,16 +34,12 @@ export interface EnginePorts {
 
 interface Source {
   title: string;
-  fingerprint: string;
+  signature: string;
   agentId: string | null;
 }
 
 class Superseded extends Error {}
 class PersistenceFailure extends Error {}
-
-function fingerprint(value: unknown): string {
-  return createHash("sha256").update(JSON.stringify(value)).digest("hex");
-}
 
 function object(value: unknown): value is Record<string, unknown> {
   return (
@@ -56,17 +50,21 @@ function object(value: unknown): value is Record<string, unknown> {
   );
 }
 
-function keys(value: Record<string, unknown>, expected: string[]): boolean {
-  const actual = Object.keys(value).sort();
-  return actual.join("\u0000") === [...expected].sort().join("\u0000");
+function keys(
+  value: Record<string, unknown>,
+  required: string[],
+  optional: string[] = [],
+): boolean {
+  return (
+    required.every((key) => Object.hasOwn(value, key)) &&
+    Object.keys(value).every(
+      (key) => required.includes(key) || optional.includes(key),
+    )
+  );
 }
 
 function nullableString(value: unknown): value is string | null {
   return value === null || typeof value === "string";
-}
-
-function digest(value: unknown): value is string {
-  return typeof value === "string" && /^[a-f0-9]{64}$/u.test(value);
 }
 
 /** A corrupt record must never be silently treated as a fresh enrollment. */
@@ -88,36 +86,37 @@ export function parseEngineState(value: unknown): EngineState {
     if (
       !workspaceId ||
       !object(record) ||
-      !keys(record, [
-        "cwd",
-        "lastApplied",
-        "paused",
-        "configFingerprint",
-        "generation",
-        "pending",
-      ]) ||
+      !keys(
+        record,
+        ["cwd", "lastApplied", "paused", "generation", "pending"],
+        ["configFingerprint"],
+      ) ||
       typeof record.cwd !== "string" ||
       !record.cwd ||
       !nullableString(record.lastApplied) ||
       typeof record.paused !== "boolean" ||
-      !digest(record.configFingerprint) ||
       typeof record.generation !== "number" ||
       !Number.isSafeInteger(record.generation) ||
       record.generation < 0 ||
       (record.pending !== null &&
         (!object(record.pending) ||
-          !keys(record.pending, ["title", "sourceFingerprint"]) ||
+          !keys(record.pending, ["title"], ["sourceFingerprint"]) ||
           typeof record.pending.title !== "string" ||
           !record.pending.title ||
-          record.pending.title.length > 120 ||
-          !digest(record.pending.sourceFingerprint)))
+          record.pending.title.length > 120))
     ) {
       throw new Error(
         "Saved naming state is invalid. No workspace names were changed.",
       );
     }
   }
-  return structuredClone(value) as unknown as EngineState;
+  const state = structuredClone(value) as unknown as EngineState;
+  for (const record of Object.values(state.records)) {
+    Reflect.deleteProperty(record, "configFingerprint");
+    if (record.pending)
+      Reflect.deleteProperty(record.pending, "sourceFingerprint");
+  }
+  return state;
 }
 
 function status(
@@ -199,7 +198,7 @@ export class LabelEngine {
       return title
         ? {
             title,
-            fingerprint: fingerprint(["branch", workspace.cwd, branch]),
+            signature: JSON.stringify(["branch", workspace.cwd, branch]),
             agentId: null,
           }
         : null;
@@ -211,7 +210,7 @@ export class LabelEngine {
     return agent && title
       ? {
           title,
-          fingerprint: fingerprint([
+          signature: JSON.stringify([
             "conversation",
             agent.id,
             agent.title,
@@ -322,12 +321,6 @@ export class LabelEngine {
     const workspace = await this.ports.workspace(enrollment.workspaceId);
     this.assertActive(revision);
     this.validateWorkspace(workspace, enrollment);
-    const configFingerprint = fingerprint([
-      enrollment.alias,
-      enrollment.mode,
-      enrollment.agentId ?? null,
-      enrollment.generation,
-    ]);
     let record = Object.hasOwn(state.records, workspace.id)
       ? state.records[workspace.id]
       : undefined;
@@ -337,7 +330,6 @@ export class LabelEngine {
         cwd: workspace.cwd,
         lastApplied: workspace.title,
         paused: false,
-        configFingerprint,
         generation: enrollment.generation,
         pending: null,
       };
@@ -362,10 +354,6 @@ export class LabelEngine {
         record.pending = null;
         changed = true;
       }
-      if (record.configFingerprint !== configFingerprint) {
-        record.configFingerprint = configFingerprint;
-        changed = true;
-      }
       if (changed) await this.persist(state, revision);
     }
     if (record.paused)
@@ -384,13 +372,10 @@ export class LabelEngine {
     if (source.title === record.lastApplied)
       return status(enrollment, "ready", "Workspace name is current.", source);
 
-    record.pending = {
-      title: source.title,
-      sourceFingerprint: source.fingerprint,
-    };
+    record.pending = { title: source.title };
     await this.persist(state, revision);
     const refreshedSource = await this.observe(enrollment, workspace, revision);
-    if (refreshedSource?.fingerprint !== source.fingerprint) {
+    if (refreshedSource?.signature !== source.signature) {
       record.pending = null;
       await this.persist(state, revision);
       return status(

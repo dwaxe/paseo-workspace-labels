@@ -180,11 +180,13 @@ describe("manual control and durable state", () => {
     data.workspace!.title = "My custom name";
     expect((await engine.reconcile([enrollment()]))[0].state).toBe("paused");
     ports.rename.mockClear();
+    ports.save.mockClear();
     const restarted = new LabelEngine(ports);
     expect(
       (await restarted.reconcile([enrollment({ alias: "beta" })]))[0].state,
     ).toBe("paused");
     expect(ports.rename).not.toHaveBeenCalled();
+    expect(ports.save).not.toHaveBeenCalled();
     expect(
       (
         await restarted.reconcile([
@@ -242,11 +244,37 @@ describe("manual control and durable state", () => {
     expect(parseEngineState(undefined).version).toBe(1);
     const { data, engine } = fixture();
     await engine.reconcile([enrollment()]);
-    savedRecord(data).pending = { title: "Next", sourceFingerprint: "bad" };
+    savedRecord(data).pending = { title: "" };
     expect(() => parseEngineState(data.saved)).toThrow(
       "Saved naming state is invalid",
     );
   });
+
+  it.each(["paused", "pending"])(
+    "preserves legacy %s records while discarding unused fingerprints",
+    async (kind) => {
+      const { data, ports, engine } = fixture();
+      await engine.reconcile([enrollment()]);
+      const record = savedRecord(data);
+      Object.assign(record, {
+        configFingerprint: "0".repeat(64),
+        paused: kind === "paused",
+        pending:
+          kind === "pending"
+            ? { title: record.lastApplied, sourceFingerprint: "0".repeat(64) }
+            : null,
+      });
+      if (kind === "paused") data.workspace!.title = "Manual name";
+      ports.rename.mockClear();
+      expect(
+        (await new LabelEngine(ports).reconcile([enrollment()]))[0].state,
+      ).toBe(kind === "paused" ? "paused" : "ready");
+      expect(ports.rename).not.toHaveBeenCalled();
+      const parsed = parseEngineState(data.saved).records.workspace;
+      expect(parsed).not.toHaveProperty("configFingerprint");
+      expect(parsed.pending).toBeNull();
+    },
+  );
 });
 
 describe("failure recovery and observation races", () => {
