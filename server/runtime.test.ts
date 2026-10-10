@@ -1,4 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
+import { execFileSync } from "node:child_process";
 import { mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
@@ -180,6 +181,33 @@ describe("Paseo SDK wiring", () => {
     expect(f.rename).toHaveBeenCalledTimes(2);
   });
 
+  it("keeps branch workspaces usable when conversation listing fails", async () => {
+    const f = await fixture();
+    const cwd = path.dirname(f.stateDirectory);
+    execFileSync("git", ["init", "--quiet", "-b", "dwaxe/fix-export", cwd]);
+    f.currentWorkspace.workspaceDirectory = cwd;
+    await f.runtime.inspect(f.api);
+    f.setConfig({
+      workspaces: [
+        {
+          workspaceId: "w1",
+          alias: "alpha",
+          mode: "branch",
+          enabled: true,
+          generation: 1,
+        },
+      ],
+    });
+    f.runtime.settingsChanged();
+    f.agentList.mockRejectedValue(new Error("Conversation list unavailable"));
+    const result = await f.runtime.inspect(f.api);
+    expect(result.agents).toEqual([]);
+    expect(result.agentsError).toBe("Could not load conversations. Try again.");
+    expect(result.workspaces[0].workspaceId).toBe("w1");
+    expect(result.statuses[0].state).toBe("ready");
+    expect(f.currentWorkspace.title).toBe("fix export · alpha");
+  });
+
   it("refreshes when only a conversation's internal label changes", async () => {
     const f = await fixture();
     await f.runtime.inspect(f.api);
@@ -326,9 +354,13 @@ describe("Paseo SDK wiring", () => {
       ...(await original(options)),
       pageInfo: { hasMore: true, nextCursor: "same" },
     }));
-    await expect(f.runtime.inspect(f.api)).rejects.toThrow(
-      "pagination did not advance",
-    );
+    const result = await f.runtime.inspect(f.api);
+    expect(result.agents).toEqual([]);
+    expect(result.agentsError).toBe("Could not load conversations. Try again.");
+    expect(result.statuses[0]).toMatchObject({
+      state: "error",
+      message: "Conversation list pagination did not advance.",
+    });
     expect(f.rename).not.toHaveBeenCalled();
   });
 });

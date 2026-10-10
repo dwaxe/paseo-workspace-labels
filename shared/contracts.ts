@@ -88,6 +88,7 @@ export const inspectLabelsRpc = defineRpc({
         createdAt: z.string(),
       }),
     ),
+    agentsError: z.string().nullable(),
     statuses: z.array(statusSchema),
   }),
 });

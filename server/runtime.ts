@@ -304,9 +304,15 @@ export class LabelRuntime {
   async inspect(api: PaseoApi) {
     await this.connect(api);
     await this.reconcile();
-    const [workspaces, agents] = await Promise.all([
+    const [workspaces, conversations] = await Promise.all([
       this.listWorkspaces(),
-      this.listAgents(),
+      this.listAgents().then(
+        (agents) => ({ agents, agentsError: null }),
+        () => ({
+          agents: [],
+          agentsError: "Could not load conversations. Try again.",
+        }),
+      ),
     ]);
     return {
       workspaces: workspaces.map((item) => ({
@@ -314,7 +320,7 @@ export class LabelRuntime {
         title: item.displayName ?? item.title,
         cwd: item.cwd,
       })),
-      agents: agents
+      agents: conversations.agents
         .filter(
           (item) =>
             !item.parentAgentId &&
@@ -328,6 +334,7 @@ export class LabelRuntime {
           title,
           createdAt,
         })),
+      agentsError: conversations.agentsError,
       statuses: this.statuses,
     };
   }

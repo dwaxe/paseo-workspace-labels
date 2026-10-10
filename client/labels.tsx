@@ -154,6 +154,7 @@ function WorkspaceControls({
   styles,
   theme,
   unavailable,
+  conversationError,
   refresh,
 }: {
   workspace: Workspace;
@@ -163,6 +164,7 @@ function WorkspaceControls({
   styles: Styles;
   theme: Theme;
   unavailable: boolean;
+  conversationError: string | null;
   refresh(): void;
 }) {
   const enrollment = settings.values.workspaces.find(
@@ -190,6 +192,8 @@ function WorkspaceControls({
   }, [enrollmentKey, workspace.cwd, reloadCount]);
 
   const busy = settings.saving || unavailable;
+  const sourceUnavailable =
+    unavailable || (draft.mode === "conversation" && !!conversationError);
   const enabled = enrollment?.enabled ?? false;
   const paused = enabled && status?.state === "paused";
   const source = conversations.find((agent) => agent.id === draft.agentId);
@@ -200,7 +204,7 @@ function WorkspaceControls({
   const save = async (action: EnrollmentAction) => {
     setError(null);
     const current = latestSettings.current;
-    if (current.saving || (unavailable && action !== "pause")) return;
+    if (current.saving || (sourceUnavailable && action !== "pause")) return;
     try {
       const desired = enrollmentForAction(
         draft.base,
@@ -294,6 +298,11 @@ function WorkspaceControls({
       </View>
       {draft.mode === "conversation" ? (
         <View style={styles.group}>
+          {conversationError ? (
+            <Text accessibilityRole="alert" style={styles.error}>
+              {conversationError}
+            </Text>
+          ) : null}
           <Text style={styles.muted}>
             {draft.agentId
               ? `Follow: ${source?.title || "Selected conversation"}`
@@ -311,7 +320,7 @@ function WorkspaceControls({
                 : "Choose conversation"
             }
             styles={styles}
-            disabled={busy}
+            disabled={busy || !!conversationError}
             onPress={() => setChoosingConversation((current) => !current)}
           />
           {choosingConversation ? (
@@ -329,7 +338,7 @@ function WorkspaceControls({
                   label={agent.title || "Untitled conversation"}
                   selected={draft.agentId === agent.id}
                   styles={styles}
-                  disabled={busy}
+                  disabled={busy || !!conversationError}
                   onPress={() => {
                     setDraft((current) => ({
                       ...current,
@@ -356,7 +365,7 @@ function WorkspaceControls({
             }
             primary
             styles={styles}
-            disabled={busy}
+            disabled={settings.saving || sourceUnavailable}
             onPress={() => void save("enable")}
           />
         ) : (
@@ -366,7 +375,7 @@ function WorkspaceControls({
                 label="Save changes"
                 primary
                 styles={styles}
-                disabled={busy}
+                disabled={settings.saving || sourceUnavailable}
                 onPress={() => void save("save")}
               />
             ) : null}
@@ -502,6 +511,7 @@ function LabelsView({
             unavailable={
               !snapshot.data || snapshot.isPending || snapshot.isError
             }
+            conversationError={snapshot.data?.agentsError ?? null}
             refresh={refresh}
           />
         ))}
