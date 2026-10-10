@@ -361,5 +361,6 @@ export class LabelRuntime {
     if (this.timer) clearTimeout(this.timer);
     if (this.heartbeat) clearInterval(this.heartbeat);
     await this.clearSubscriptions();
+    await this.reconciliation;
   }
 }

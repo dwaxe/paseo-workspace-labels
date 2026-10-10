@@ -229,6 +229,44 @@ describe("Paseo SDK wiring", () => {
     expect(f.listeners.workspace).toHaveBeenCalledTimes(1);
   });
 
+  it("finishes pre-write cleanup before a replacement runtime can start", async () => {
+    const f = await fixture();
+    await f.runtime.inspect(f.api);
+    f.agents[0].title = "Another task";
+    let entered!: () => void;
+    let release!: () => void;
+    const reached = new Promise<void>((resolve) => {
+      entered = resolve;
+    });
+    const blocked = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    const original = f.agentList.getMockImplementation()!;
+    f.agentList.mockImplementationOnce(original);
+    f.agentList.mockImplementationOnce(async (options) => {
+      entered();
+      await blocked;
+      return original(options);
+    });
+    const inFlight = f.runtime.inspect(f.api).catch(() => null);
+    await reached;
+    const stopped = vi.fn();
+    const stopping = f.runtime.stop().then(stopped);
+    try {
+      await new Promise<void>((resolve) => setImmediate(resolve));
+      expect(stopped).not.toHaveBeenCalled();
+    } finally {
+      release();
+      await Promise.all([stopping, inFlight]);
+    }
+    f.currentWorkspace.title = "Another task · alpha";
+    f.agents[0].title = "Latest work";
+    const replacement = new LabelRuntime(f.settings, f.stateDirectory);
+    runtimes.push(replacement);
+    expect((await replacement.inspect(f.api)).statuses[0].state).toBe("paused");
+    expect(f.rename).toHaveBeenCalledTimes(1);
+  });
+
   it("follows a detached child without waiting for its next turn", async () => {
     const f = await fixture();
     await f.runtime.inspect(f.api);
