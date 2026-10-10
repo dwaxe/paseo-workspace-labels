@@ -50,6 +50,13 @@ describe("sidebar title formatting", () => {
     expect(conversationTitle("New chat · alpha", "alpha")).toBeNull();
   });
 
+  it("keeps aliases with invisible characters stable when reformatting", () => {
+    const alias = "alpha \u200b beta";
+    const title = conversationTitle("Fix sidebar", alias);
+    expect(title).toBe("Fix sidebar · alpha beta");
+    expect(conversationTitle(title, alias)).toBe(title);
+  });
+
   it("bounds the complete title without breaking emoji or losing its suffix", () => {
     const formatted = conversationTitle("🚀".repeat(100), "alpha");
     expect(formatted?.length).toBeLessThanOrEqual(120);

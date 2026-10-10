@@ -5,8 +5,8 @@ export const MAX_TITLE_LENGTH = 120;
 /** Keep metadata suitable for a one-line sidebar label. */
 export function cleanText(value: string): string {
   return value
+    .replace(/(?!\s)[\p{Cc}\p{Cf}]/gu, "")
     .replace(/\s+/gu, " ")
-    .replace(/[\p{Cc}\p{Cf}]/gu, "")
     .trim();
 }
 
