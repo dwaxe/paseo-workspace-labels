@@ -504,6 +504,26 @@ describe("failure recovery and observation races", () => {
     expect(ports.rename).not.toHaveBeenCalled();
   });
 
+  it("clears an unattempted intent when stopping during the final source check", async () => {
+    const { data, ports, engine } = fixture();
+    ports.agents.mockImplementationOnce(async () =>
+      structuredClone(data.agents),
+    );
+    ports.agents.mockImplementationOnce(async () => {
+      expect(savedRecord(data).pending).not.toBeNull();
+      engine.stop();
+      return structuredClone(data.agents);
+    });
+    expect((await engine.reconcile([enrollment()]))[0].state).toBe("waiting");
+    expect(savedRecord(data).pending).toBeNull();
+    data.workspace!.title = "Fix sidebar navigation · alpha";
+    data.agents[0].title = "A different task";
+    expect(
+      (await new LabelEngine(ports).reconcile([enrollment()]))[0].state,
+    ).toBe("paused");
+    expect(ports.rename).not.toHaveBeenCalled();
+  });
+
   it("invalidates stale in-flight settings before an older run can rename", async () => {
     const { data, ports, engine } = fixture();
     let latest: Promise<unknown> | undefined;

@@ -172,8 +172,8 @@ export class LabelEngine {
     }
   }
 
-  private async persist(state: EngineState, revision: number): Promise<void> {
-    this.assertActive(revision);
+  private async persist(state: EngineState, revision?: number): Promise<void> {
+    if (revision !== undefined) this.assertActive(revision);
     try {
       await this.ports.save(structuredClone(state));
     } catch {
@@ -181,7 +181,7 @@ export class LabelEngine {
         "Could not save naming state. No further names were changed.",
       );
     }
-    this.assertActive(revision);
+    if (revision !== undefined) this.assertActive(revision);
   }
 
   private async observe(
@@ -404,8 +404,8 @@ export class LabelEngine {
       }
     } catch (error) {
       record.pending = null;
-      // Runs are serialized; clear unattempted intent before the next run reads it.
-      await this.persist(state, this.revision);
+      // Runs are serialized; clear unattempted intent even when this run stopped.
+      await this.persist(state);
       throw error;
     }
     await this.ports.rename(workspace.id, source.title);
