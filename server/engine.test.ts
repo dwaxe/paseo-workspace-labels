@@ -55,7 +55,7 @@ function fixture() {
       data.saved = structuredClone(state);
     }),
     workspace: vi.fn(async (_id: string) => structuredClone(data.workspace)),
-    agents: vi.fn(async (_id: string) => structuredClone(data.agents)),
+    agents: vi.fn(async () => structuredClone(data.agents)),
     branch: vi.fn(async (_cwd: string) => data.branch),
     rename: vi.fn(async (_id: string, title: string) => {
       if (data.workspace) data.workspace.title = title;
@@ -82,7 +82,6 @@ describe("opt-in workspace naming", () => {
         state: "ready",
         message: "Workspace name updated.",
         preview: "Fix sidebar navigation · alpha",
-        sourceAgentId: "current",
       },
     ]);
     expect(savedRecord(data).lastApplied).toBe(

@@ -116,10 +116,7 @@ export class LabelRuntime {
         const row = await this.requireApi().workspaces.ref(id).refresh();
         return row ? workspaceView(row) : null;
       },
-      agents: async (workspaceId) =>
-        (await this.listAgents()).filter(
-          (agent) => agent.workspaceId === workspaceId,
-        ),
+      agents: () => this.listAgents(),
       branch: (cwd) => readBranch(cwd, this.abort.signal),
       rename: async (id, title) => {
         if (this.stopped) throw new Error("Workspace labels stopped.");
@@ -297,7 +294,6 @@ export class LabelRuntime {
         message:
           "Naming preferences could not be read. Reload settings to continue.",
         preview: null,
-        sourceAgentId: null,
       }));
       return;
     }

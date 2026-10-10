@@ -66,7 +66,6 @@ export const statusSchema = z.object({
   state: z.enum(["disabled", "ready", "paused", "waiting", "error"]),
   message: z.string(),
   preview: z.string().nullable(),
-  sourceAgentId: z.string().nullable(),
 });
 export type LabelStatus = z.output<typeof statusSchema>;
 

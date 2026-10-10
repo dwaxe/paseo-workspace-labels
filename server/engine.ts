@@ -27,7 +27,7 @@ export interface EnginePorts {
   load(): Promise<unknown>;
   save(state: EngineState): Promise<void>;
   workspace(id: string): Promise<WorkspaceView | null>;
-  agents(workspaceId: string): Promise<AgentView[]>;
+  agents(): Promise<AgentView[]>;
   branch(cwd: string): Promise<string | null>;
   rename(id: string, title: string): Promise<void>;
 }
@@ -35,7 +35,6 @@ export interface EnginePorts {
 interface Source {
   title: string;
   signature: string;
-  agentId: string | null;
 }
 
 class Superseded extends Error {}
@@ -130,7 +129,6 @@ function status(
     state,
     message,
     preview: source?.title ?? null,
-    sourceAgentId: source?.agentId ?? null,
   };
 }
 
@@ -199,11 +197,10 @@ export class LabelEngine {
         ? {
             title,
             signature: JSON.stringify(["branch", workspace.cwd, branch]),
-            agentId: null,
           }
         : null;
     }
-    const agents = await this.ports.agents(workspace.id);
+    const agents = await this.ports.agents();
     this.assertActive(revision);
     const agent = selectConversation(agents, workspace.id, enrollment.agentId);
     const title = conversationTitle(agent?.title ?? null, enrollment.alias);
@@ -216,7 +213,6 @@ export class LabelEngine {
             agent.title,
             agent.createdAt,
           ]),
-          agentId: agent.id,
         }
       : null;
   }
