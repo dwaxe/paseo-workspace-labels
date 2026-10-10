@@ -1,6 +1,6 @@
 {
   "name": "paseo-workspace-labels",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Keep Paseo workspace names aligned with their conversations or Git branches.",
   "license": "MIT",
   "type": "module",

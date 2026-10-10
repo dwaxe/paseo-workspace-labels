@@ -15,7 +15,6 @@ export default function contribute(server: PluginServerContext) {
   ] as const) {
     cleanups.push(
       server.on(event, async ({ agent }, context) => {
-        runtime.noteParent(agent.id, agent.parentAgentId);
         if (agent.parentAgentId !== null) return;
         await runtime.connect(context.paseo);
         runtime.schedule();

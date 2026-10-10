@@ -15,7 +15,7 @@ runs in the background without model calls or messages to your coding agents.
 Requires Paseo 0.11.1. Enable plugins in Paseo Settings, then install:
 
 ```sh
-paseo plugin install git:dwaxe/paseo-workspace-labels --ref v0.1.0
+paseo plugin install git:dwaxe/paseo-workspace-labels --ref v0.1.1
 ```
 
 Open **Workspace names** in the sidebar or run **Configure this workspace name**

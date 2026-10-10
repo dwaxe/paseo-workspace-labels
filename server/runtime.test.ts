@@ -130,9 +130,7 @@ describe("Paseo SDK wiring", () => {
       agentView(agent({ labels: { "paseo.parent-agent-id": "parent" } }))
         .parentAgentId,
     ).toBe("parent");
-    expect(
-      agentView(agent(), new Map([["a1", "known-parent"]])).parentAgentId,
-    ).toBe("known-parent");
+    expect(agentView(agent()).parentAgentId).toBeNull();
     expect(
       workspaceView(workspace({ workspaceDirectory: undefined })),
     ).toBeNull();
@@ -157,6 +155,17 @@ describe("Paseo SDK wiring", () => {
     }
     expect(f.listeners.agent).toHaveBeenCalledTimes(1);
     expect(f.listeners.workspace).toHaveBeenCalledTimes(1);
+  });
+
+  it("follows a detached child without waiting for its next turn", async () => {
+    const f = await fixture();
+    await f.runtime.inspect(f.api);
+    expect(f.currentWorkspace.title).toBe("Improve search · alpha");
+    f.agents[1].labels = {};
+    const result = await f.runtime.inspect(f.api);
+    expect(result.agents.map((item) => item.id)).toEqual(["a1", "child"]);
+    expect(f.currentWorkspace.title).toBe("Private child · alpha");
+    expect(f.rename).toHaveBeenCalledTimes(2);
   });
 
   it("pauses on an externally changed title and resumes only after explicit settings change", async () => {
@@ -218,6 +227,47 @@ describe("Paseo SDK wiring", () => {
     await inFlight;
     await f.runtime.inspect(f.api);
     expect(f.rename).not.toHaveBeenCalled();
+  });
+
+  it("finishes a slow naming update before coalescing another refresh", async () => {
+    vi.useFakeTimers();
+    const f = await fixture();
+    let reached!: () => void;
+    let release!: () => void;
+    const entered = new Promise<void>((resolve) => {
+      reached = resolve;
+    });
+    const blocked = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    const original = f.agentList.getMockImplementation()!;
+    f.agentList.mockImplementation(async (options) => {
+      if (!options.subscribe) {
+        reached();
+        await blocked;
+      }
+      return original(options);
+    });
+    const read = vi.spyOn(f.settings, "read");
+    try {
+      const inFlight = f.runtime.inspect(f.api);
+      await entered;
+      await vi.advanceTimersByTimeAsync(350);
+      expect(read).toHaveBeenCalledTimes(1);
+      release();
+      await inFlight;
+      expect(f.rename).toHaveBeenCalledExactlyOnceWith(
+        "Improve search · alpha",
+      );
+      await vi.advanceTimersByTimeAsync(350);
+      await f.runtime.inspect(f.api);
+      expect(read.mock.calls.length).toBeGreaterThan(1);
+      expect(f.rename).toHaveBeenCalledTimes(1);
+    } finally {
+      release();
+      await f.runtime.stop();
+      vi.useRealTimers();
+    }
   });
 
   it("does not confuse branch-derived display names with explicit manual renames", async () => {

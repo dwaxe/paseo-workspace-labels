@@ -22,17 +22,13 @@ const execute = promisify(execFile);
 const PAGE_SIZE = 100;
 const MAX_PAGES = 100;
 
-export function agentView(
-  agent: PaseoAgent,
-  parents: ReadonlyMap<string, string | null> = new Map(),
-): AgentView {
+export function agentView(agent: PaseoAgent): AgentView {
   return {
     id: agent.id,
     workspaceId: agent.workspaceId ?? null,
     title: agent.title,
     createdAt: agent.createdAt,
-    parentAgentId:
-      parents.get(agent.id) ?? agent.labels["paseo.parent-agent-id"] ?? null,
+    parentAgentId: agent.labels["paseo.parent-agent-id"] ?? null,
     archived: Boolean(agent.archivedAt),
     closed: agent.status === "closed",
     internal: agent.labels["paseo.internal"] === "true",
@@ -88,13 +84,14 @@ export class LabelRuntime {
   private readonly abort = new AbortController();
   private readonly cleanups: (() => void)[] = [];
   private readonly releases: (() => Promise<void>)[] = [];
-  private readonly parents = new Map<string, string | null>();
   private readonly signatures = new Map<string, string>();
   private timer: ReturnType<typeof setTimeout> | null = null;
   private heartbeat: ReturnType<typeof setInterval> | null = null;
   private statuses: LabelStatus[] = [];
   private enrollments: Enrollment[] = [];
   private settingsEpoch = 0;
+  private reconciliation: Promise<void> | null = null;
+  private refreshRequested = false;
   private readonly engine: LabelEngine;
 
   constructor(
@@ -125,10 +122,6 @@ export class LabelRuntime {
     if (!this.api || this.stopped)
       throw new Error("Workspace labels are not connected.");
     return this.api;
-  }
-
-  noteParent(id: string, parent: string | null) {
-    this.parents.set(id, parent);
   }
 
   settingsChanged() {
@@ -164,7 +157,7 @@ export class LabelRuntime {
             this.schedule();
             return;
           }
-          const agent = agentView(update.agent, this.parents);
+          const agent = agentView(update.agent);
           const signature = JSON.stringify([
             agent.workspaceId,
             agent.title,
@@ -231,9 +224,7 @@ export class LabelRuntime {
         sort: [{ key: "created_at", direction: "desc" }],
         page: { limit: PAGE_SIZE, ...(cursor ? { cursor } : {}) },
       });
-      agents.push(
-        ...result.entries.map(({ agent }) => agentView(agent, this.parents)),
-      );
+      agents.push(...result.entries.map(({ agent }) => agentView(agent)));
       if (!result.pageInfo.hasMore) return agents;
       const next = result.pageInfo.nextCursor;
       if (!next || seen.has(next))
@@ -268,6 +259,23 @@ export class LabelRuntime {
   }
 
   private async reconcile(): Promise<void> {
+    if (this.reconciliation) {
+      this.refreshRequested = true;
+      return this.reconciliation;
+    }
+    this.reconciliation = this.reconcileOnce();
+    try {
+      await this.reconciliation;
+    } finally {
+      this.reconciliation = null;
+      if (this.refreshRequested) {
+        this.refreshRequested = false;
+        this.schedule();
+      }
+    }
+  }
+
+  private async reconcileOnce(): Promise<void> {
     if (this.stopped) return;
     const epoch = this.settingsEpoch;
     const config = await this.settings.read();

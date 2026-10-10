@@ -198,7 +198,7 @@ function WorkspaceControls({
   const save = async (action: EnrollmentAction) => {
     setError(null);
     const current = latestSettings.current;
-    if (current.saving || unavailable) return;
+    if (current.saving || (unavailable && action !== "pause")) return;
     try {
       const desired = enrollmentForAction(
         draft.base,
@@ -382,7 +382,7 @@ function WorkspaceControls({
             <Button
               label="Pause automatic naming"
               styles={styles}
-              disabled={busy}
+              disabled={settings.saving}
               onPress={() => void save("pause")}
             />
           </>

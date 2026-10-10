@@ -80,9 +80,15 @@ describe("workspace enrollment changes", () => {
   });
 
   it("validates checkout labels before saving", () => {
-    expect(() =>
-      mergeEnrollment({ workspaces: [] }, undefined, enrollment("first", "")),
-    ).toThrow();
+    for (const alias of ["", "\u200b", "\u200e \u200f"]) {
+      expect(() =>
+        mergeEnrollment(
+          { workspaces: [] },
+          undefined,
+          enrollment("first", alias),
+        ),
+      ).toThrow();
+    }
   });
 });
 

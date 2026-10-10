@@ -8,7 +8,11 @@ export const enrollmentSchema = z.object({
     .trim()
     .min(1)
     .max(40)
-    .regex(/^[^\u0000-\u001f\u007f]+$/),
+    .regex(/^[^\u0000-\u001f\u007f]+$/)
+    .refine(
+      (value) => value.replace(/[\p{Cc}\p{Cf}]/gu, "").trim().length > 0,
+      "Enter a visible checkout label.",
+    ),
   mode: z.enum(["conversation", "branch"]).default("conversation"),
   agentId: z.string().min(1).optional(),
   enabled: z.boolean().default(true),
