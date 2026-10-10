@@ -35,7 +35,11 @@ type ReadySettings = Extract<
   SettingsState<typeof labelSettings.schema>,
   { status: "ready" }
 >;
-type Workspace = { workspaceId: string; title: string | null; cwd: string };
+type Workspace = {
+  workspaceId: string;
+  title: string | null;
+  cwd: string | null;
+};
 type Conversation = {
   id: string;
   title: string | null;
@@ -136,10 +140,10 @@ function Button({
   );
 }
 
-function initialDraft(enrollment: Enrollment | undefined, cwd: string) {
+function initialDraft(enrollment: Enrollment | undefined, cwd: string | null) {
   return {
     base: enrollment,
-    alias: enrollment?.alias ?? defaultAlias(cwd),
+    alias: enrollment?.alias ?? defaultAlias(cwd ?? ""),
     mode: enrollment?.mode ?? ("conversation" as const),
     agentId: enrollment?.agentId ?? "",
     dirty: false,
@@ -193,7 +197,9 @@ function WorkspaceControls({
   const enabled = enrollment?.enabled ?? false;
   const paused = enabled && status?.state === "paused";
   const source = conversations.find((agent) => agent.id === draft.agentId);
-  const title = workspace.title || defaultAlias(workspace.cwd);
+  const title =
+    workspace.title ||
+    (workspace.cwd ? defaultAlias(workspace.cwd) : workspace.workspaceId);
 
   const save = async (action: EnrollmentAction) => {
     setError(null);
@@ -240,7 +246,7 @@ function WorkspaceControls({
       <View style={styles.group}>
         <Text style={styles.heading}>{title}</Text>
         <Text selectable style={styles.muted}>
-          {workspace.cwd}
+          {workspace.cwd ?? workspace.workspaceId}
         </Text>
         <Text style={styles.muted}>
           {!enabled
@@ -430,10 +436,19 @@ function LabelsView({
   const styles = useMemo(() => createStyles(theme), [theme]);
   const refresh = () => void snapshot.refetch();
   const workspaces =
-    snapshot.data?.workspaces.filter(
-      (entry) => !workspaceId || entry.workspaceId === workspaceId,
-    ) ?? [];
-  const shownWorkspaces = liveWorkspace ? [liveWorkspace] : workspaces;
+    snapshot.data?.workspaces ??
+    (settings.status === "ready"
+      ? settings.values.workspaces.map(({ workspaceId, alias }) => ({
+          workspaceId,
+          title: alias,
+          cwd: null,
+        }))
+      : []);
+  const shownWorkspaces = liveWorkspace
+    ? [liveWorkspace]
+    : workspaces.filter(
+        (entry) => !workspaceId || entry.workspaceId === workspaceId,
+      );
 
   return (
     <ScrollView
@@ -499,7 +514,9 @@ function LabelsView({
             settings={settings}
             styles={styles}
             theme={theme}
-            unavailable={snapshot.isPending || snapshot.isError}
+            unavailable={
+              !snapshot.data || snapshot.isPending || snapshot.isError
+            }
             refresh={refresh}
           />
         ))}

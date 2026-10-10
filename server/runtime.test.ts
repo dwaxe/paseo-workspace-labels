@@ -2,7 +2,12 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
-import type { PaseoApi, PaseoAgent, PaseoWorkspace } from "@getpaseo/client";
+import type {
+  PaseoApi,
+  PaseoAgent,
+  PaseoAgentUpdate,
+  PaseoWorkspace,
+} from "@getpaseo/client";
 import type { PluginSettings } from "@getpaseo/plugin/server";
 import { labelSettings, type LabelSettings } from "../shared/contracts";
 import { agentView, LabelRuntime, workspaceView } from "./runtime";
@@ -71,6 +76,7 @@ async function fixture() {
     remove: ReturnType<typeof vi.fn>;
   }[] = [];
   const listeners = { agent: vi.fn(), workspace: vi.fn() };
+  let onAgentUpdate: (update: PaseoAgentUpdate) => void = () => {};
   const subscription = () => {
     const stream = { release: vi.fn(async () => {}), remove: vi.fn() };
     streams.push(stream);
@@ -84,7 +90,13 @@ async function fixture() {
     }),
   );
   const api = {
-    agents: { list: agentList, subscribe: () => listeners.agent },
+    agents: {
+      list: agentList,
+      subscribe: (listener: typeof onAgentUpdate) => {
+        onAgentUpdate = listener;
+        return listeners.agent;
+      },
+    },
     workspaces: {
       list: async (options: { subscribe?: object }) => ({
         entries: [structuredClone(currentWorkspace)],
@@ -116,6 +128,8 @@ async function fixture() {
     streams,
     listeners,
     agentList,
+    emitAgent: (value: PaseoAgent) =>
+      onAgentUpdate({ kind: "upsert", agent: value } as PaseoAgentUpdate),
     settings,
     stateDirectory: path.join(root, "state"),
     setConfig: (value: LabelSettings) => {
@@ -166,6 +180,17 @@ describe("Paseo SDK wiring", () => {
     expect(result.agents.map((item) => item.id)).toEqual(["a1", "child"]);
     expect(f.currentWorkspace.title).toBe("Private child · alpha");
     expect(f.rename).toHaveBeenCalledTimes(2);
+  });
+
+  it("refreshes when only a conversation's internal label changes", async () => {
+    const f = await fixture();
+    await f.runtime.inspect(f.api);
+    f.emitAgent(structuredClone(f.agents[0]));
+    const schedule = vi.spyOn(f.runtime, "schedule");
+    f.agents[0].labels["paseo.internal"] = "true";
+    f.emitAgent(structuredClone(f.agents[0]));
+    expect(schedule).toHaveBeenCalledOnce();
+    expect((await f.runtime.inspect(f.api)).statuses[0].state).toBe("waiting");
   });
 
   it("pauses on an externally changed title and resumes only after explicit settings change", async () => {

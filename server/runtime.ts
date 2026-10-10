@@ -2,12 +2,9 @@ import { execFile } from "node:child_process";
 import { promisify } from "node:util";
 import path from "node:path";
 import type {
-  OwnedSubscription,
-  PaseoApi,
-  PaseoAgent,
-  PaseoWorkspace,
-} from "@getpaseo/client";
-import type { PluginSettings } from "@getpaseo/plugin/server";
+  PluginHandlerContext,
+  PluginSettings,
+} from "@getpaseo/plugin/server";
 import {
   labelSettings,
   type AgentView,
@@ -21,6 +18,19 @@ import { defaultStateDirectory, FileStateStore } from "./store";
 const execute = promisify(execFile);
 const PAGE_SIZE = 100;
 const MAX_PAGES = 100;
+
+type PaseoApi = PluginHandlerContext["paseo"];
+type PaseoAgent = Awaited<
+  ReturnType<PaseoApi["agents"]["list"]>
+>["entries"][number]["agent"];
+type PaseoWorkspace = Awaited<
+  ReturnType<PaseoApi["workspaces"]["list"]>
+>["entries"][number];
+type OwnedSubscription =
+  | NonNullable<Awaited<ReturnType<PaseoApi["agents"]["list"]>>["subscription"]>
+  | NonNullable<
+      Awaited<ReturnType<PaseoApi["workspaces"]["list"]>>["subscription"]
+    >;
 
 export function agentView(agent: PaseoAgent): AgentView {
   return {
@@ -130,7 +140,7 @@ export class LabelRuntime {
     this.schedule();
   }
 
-  private own<T>(subscription: OwnedSubscription<T>) {
+  private own(subscription: OwnedSubscription) {
     if (this.stopped) {
       void subscription.release().catch(() => {});
       return;
@@ -165,6 +175,7 @@ export class LabelRuntime {
             agent.parentAgentId,
             agent.archived,
             agent.closed,
+            agent.internal,
           ]);
           if (this.signatures.get(agent.id) !== signature) {
             this.signatures.set(agent.id, signature);
