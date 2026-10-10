@@ -408,7 +408,6 @@ export class LabelEngine {
         source,
       );
     }
-    this.assertActive(revision);
     await this.ports.rename(workspace.id, source.title);
     this.assertActive(revision);
     const readback = await this.ports.workspace(workspace.id);

@@ -119,7 +119,6 @@ export class LabelRuntime {
       agents: () => this.listAgents(),
       branch: (cwd) => readBranch(cwd, this.abort.signal),
       rename: async (id, title) => {
-        if (this.stopped) throw new Error("Workspace labels stopped.");
         await this.requireApi().workspaces.ref(id).setTitle(title);
       },
     });
