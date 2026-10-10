@@ -231,7 +231,7 @@ export class LabelEngine {
     }
     if (cwd !== undefined && workspace.cwd !== cwd) {
       throw new Error(
-        "Workspace directory changed. Remove and enroll it again to use this directory.",
+        "Workspace directory changed. Pause naming, wait for the next check, then enable it again.",
       );
     }
   }
