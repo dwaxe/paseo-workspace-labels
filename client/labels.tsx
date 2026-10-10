@@ -7,6 +7,7 @@ import {
   type PluginWorkspacePanelProps,
   type SettingsState,
 } from "@getpaseo/plugin/client";
+import type { RpcOutput } from "@getpaseo/plugin";
 import { useQuery } from "@tanstack/react-query";
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
@@ -40,12 +41,7 @@ type Workspace = {
   title: string | null;
   cwd: string | null;
 };
-type Conversation = {
-  id: string;
-  title: string | null;
-  createdAt: string;
-  workspaceId: string | null;
-};
+type Conversation = RpcOutput<typeof inspectLabelsRpc>["agents"][number];
 
 function createStyles(theme: Theme) {
   return StyleSheet.create({
