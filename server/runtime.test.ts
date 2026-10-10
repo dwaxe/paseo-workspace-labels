@@ -11,7 +11,7 @@ import type {
 } from "@getpaseo/client";
 import type { PluginSettings } from "@getpaseo/plugin/server";
 import { labelSettings, type LabelSettings } from "../shared/contracts";
-import { agentView, LabelRuntime, workspaceView } from "./runtime";
+import { agentView, LabelRuntime, readBranch, workspaceView } from "./runtime";
 
 const runtimes: LabelRuntime[] = [];
 const roots: string[] = [];
@@ -139,6 +139,29 @@ async function fixture() {
 }
 
 describe("Paseo SDK wiring", () => {
+  it("reads the same branch ref when a matching tag is added", async () => {
+    const f = await fixture();
+    const cwd = path.dirname(f.stateDirectory);
+    execFileSync("git", ["init", "--quiet", "-b", "release/v1.3.0", cwd]);
+    execFileSync("git", [
+      "-C",
+      cwd,
+      "-c",
+      "user.name=Test",
+      "-c",
+      "user.email=test@example.invalid",
+      "commit",
+      "--quiet",
+      "--allow-empty",
+      "-m",
+      "Initialize test",
+    ]);
+    const before = await readBranch(cwd);
+    execFileSync("git", ["-C", cwd, "tag", "release/v1.3.0"]);
+    expect(await readBranch(cwd)).toBe(before);
+    expect(before).toBe("refs/heads/release/v1.3.0");
+  });
+
   it("uses the snapshot parent label and exact workspace directory", () => {
     expect(
       agentView(agent({ labels: { "paseo.parent-agent-id": "parent" } }))

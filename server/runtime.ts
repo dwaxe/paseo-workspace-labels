@@ -69,7 +69,7 @@ export async function readBranch(
   try {
     const result = await execute(
       "git",
-      ["-C", cwd, "symbolic-ref", "--quiet", "--short", "HEAD"],
+      ["-C", cwd, "symbolic-ref", "--quiet", "HEAD"],
       {
         timeout: 10_000,
         maxBuffer: 4096,

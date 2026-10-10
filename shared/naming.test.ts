@@ -68,6 +68,9 @@ describe("sidebar title formatting", () => {
     expect(branchTitle("owner/proj-123-improve-navigation", "alpha")).toBe(
       "PROJ-123 improve navigation · alpha",
     );
+    expect(branchTitle("owner/proj-123_improve-navigation", "alpha")).toBe(
+      "PROJ-123 improve navigation · alpha",
+    );
     expect(branchTitle("refs/heads/feature/fix_network_setup", "beta")).toBe(
       "fix network setup · beta",
     );

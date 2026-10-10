@@ -59,7 +59,7 @@ export function branchTitle(
   text = text.replace(/^[^/]+\//u, "");
   text = text
     .replace(
-      /\b([a-z][a-z0-9]*)-(\d+)\b/giu,
+      /(?<![a-z0-9])([a-z][a-z0-9]*)-(\d+)(?![a-z0-9])/giu,
       (_, prefix: string, number: string) =>
         `${prefix.toUpperCase()}\u0000${number}`,
     )
