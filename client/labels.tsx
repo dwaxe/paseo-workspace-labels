@@ -324,21 +324,10 @@ function WorkspaceControls({
               style={styles.conversations}
               contentContainerStyle={styles.conversationList}
             >
-              <Button
-                label="Newest conversation automatically"
-                selected={draft.agentId === ""}
-                styles={styles}
-                disabled={busy}
-                onPress={() => {
-                  setDraft((current) => ({
-                    ...current,
-                    agentId: "",
-                    dirty: true,
-                  }));
-                  setChoosingConversation(false);
-                }}
-              />
-              {conversations.map((agent) => (
+              {[
+                { id: "", title: "Newest conversation automatically" },
+                ...conversations,
+              ].map((agent) => (
                 <Button
                   key={agent.id}
                   label={agent.title || "Untitled conversation"}
