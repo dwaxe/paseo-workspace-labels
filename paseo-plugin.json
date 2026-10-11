@@ -2,7 +2,10 @@
   "id": "workspace-labels",
   "name": "Workspace labels",
   "description": "Follow conversation titles or Git branches while keeping familiar checkout names.",
-  "media": [],
+  "media": [
+    "https://raw.githubusercontent.com/dwaxe/paseo-workspace-labels/v0.1.4/docs/media/workspace-names-setup.png",
+    "https://raw.githubusercontent.com/dwaxe/paseo-workspace-labels/v0.1.4/docs/media/workspace-names-enabled.png"
+  ],
   "requirements": {
     "paseo": ">=0.11.1 <0.12.0"
   }

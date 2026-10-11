@@ -2,25 +2,31 @@
 
 Give reusable checkouts names that show the work happening in them.
 
-```text
-alpha  →  Improve search · alpha
-beta   →  Fix export timeout · beta
-```
-
 This Paseo plugin follows existing conversation titles or Git branch names. It
 runs in the background without model calls or messages to your coding agents.
+
+![Enabling automatic naming changes alpha to Improve search · alpha](docs/media/workspace-names.gif)
+
+Actual plugin controls rendered with sample data. The checkout directory stays
+the same.
 
 ## Install
 
 Requires Paseo 0.11.1. Enable plugins in Paseo Settings, then install:
 
 ```sh
-paseo plugin install git:dwaxe/paseo-workspace-labels --ref v0.1.3
+paseo plugin install git:dwaxe/paseo-workspace-labels --ref v0.1.4
 ```
 
-Open **Workspace names** in the sidebar or run **Configure this workspace name**
-from the Command Center. Choose a checkout label, such as `alpha`, and enable
-automatic naming for that workspace. Every workspace starts with naming off.
+1. Open **Workspace names** in the sidebar, or **Configure this workspace name**
+   from the Command Center.
+2. Enter a **Checkout label**, such as `alpha`, and choose **Conversation title**
+   or **Git branch**.
+3. Click **Enable automatic naming**. A task called `Improve search` now appears
+   as `Improve search · alpha`.
+
+Every workspace starts with naming off. Enable only the workspaces you want
+the plugin to follow.
 
 ## Naming
 
